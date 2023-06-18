@@ -11,9 +11,10 @@ pip install -e .
 
 Required variables:
 
-MLFLOW_TRACKING_URI
-MLFLOW_TRACKING_USERNAME
-MLFLOW_TRACKING_PASSWORD
-MLFLOW_S3_ENDPOINT_URL
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
+**MLFLOW_TRACKING_URI**: URI of your tracking server (including port)
+
+**MLFLOW_TRACKING_USERNAME**, **MLFLOW_TRACKING_PASSWORD**: Mlflow authentication
+
+**MLFLOW_S3_ENDPOINT_URL**: URI of your S3 storage (including port). For this purpose, we use minio (https://min.io/).
+
+**AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**: S3 authentication
