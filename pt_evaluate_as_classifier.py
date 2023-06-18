@@ -15,10 +15,10 @@ if __name__ == '__main__':
                         help="Path to the saved embedder + discriminator model. Exclusive with -e and -d.")
     parser.add_argument('-e', '--embedder_path', type=str,
                         help="Path to the saved embedder model. Exclusive with -m, requires -d.",
-                        default="best_embedding")
+                        default="best_model/best_embedding")
     parser.add_argument('-d', '--discriminator_path', type=str,
                         help="Path to the saved discriminator model. Exclusive with -m, requires -e.",
-                        default="best_discriminator")
+                        default="best_model/best_discriminator")
 
     # Dataset settings
     parser.add_argument('-ds', '--dataset', type=str, help="Dataset name.", choices=['c15p', 'ikem', 'ptb', 'ptbxl'],
