@@ -6,38 +6,42 @@ import pandas as pd
 import wfdb
 from collections import Counter
 
-os.makedirs('ptbxlours', exist_ok=True)
 
-df = pd.read_csv('ptbxl/ptbxl_database.csv')
-df.rename(columns={'ecg_id': 'exam_id', 'sex': 'is_male'}, inplace=True)
-df['is_male'] = df['is_male'].replace({0: 1, 1: 0})
-df['patient_id'] = df['patient_id'].astype(int)
-df.set_index('exam_id', inplace=True)
+def main(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
 
-lengths = []
-exam_ids_buffer = []
-tracings_buffer = []
-sex = []
+    df = pd.read_csv(f'{input_dir}/ptbxl_database.csv')
+    df.rename(columns={'ecg_id': 'exam_id', 'sex': 'is_male'}, inplace=True)
+    df['is_male'] = df['is_male'].replace({0: 1, 1: 0})
+    df['patient_id'] = df['patient_id'].astype(int)
+    df.set_index('exam_id', inplace=True)
 
-for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
-    data = wfdb.rdsamp('ptbxl/' + row['filename_hr'])
-    array = data[0]
-    new_array = np.zeros((4096, 12), dtype=np.short)
+    exam_ids_buffer = []
+    tracings_buffer = []
 
-    assert array.shape[0] == 5000
-    clip_size = (5000 - 4096) // 2
-    clipped = array[clip_size:-clip_size]
-    new_array[:, 0:6] = clipped[:, 6:12] / 0.00488
-    new_array[:, 6:8] = clipped[:, 0:2] / 0.00488
-    tracings_buffer.append(new_array)
-    exam_ids_buffer.append(idx)
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
+        data = wfdb.rdsamp(f'{input_dir}/' + row['filename_hr'])
+        array = data[0]
+        new_array = np.zeros((4096, 12), dtype=np.short)
 
-with h5py.File('ptbxlours/exams_part_0.hdf5', 'w') as f:
-    f.create_dataset('exam_id', data=exam_ids_buffer, dtype='i4')
-    f.create_dataset('tracings', data=tracings_buffer, chunks=(1, 4096, 8), dtype='i2')
+        assert array.shape[0] == 5000
+        clip_size = (5000 - 4096) // 2
+        clipped = array[clip_size:-clip_size]
+        new_array[:, 0:6] = clipped[:, 6:12] / 0.00488
+        new_array[:, 6:8] = clipped[:, 0:2] / 0.00488
+        tracings_buffer.append(new_array)
+        exam_ids_buffer.append(idx)
 
-df.to_csv('ptbxlours/exams.csv')
-print('done')
+    with h5py.File(f'{output_dir}/exams_part_0.hdf5', 'w') as f:
+        f.create_dataset('exam_id', data=exam_ids_buffer, dtype='i4')
+        f.create_dataset('tracings', data=tracings_buffer, chunks=(1, 4096, 8), dtype='i2')
+
+    df.to_csv(f'{output_dir}/exams.csv')
+    print('done')
+
+
+if __name__ == '__main__':
+    main('ptbxl', 'ptbxlours')
 
 
 # for fn in tqdm(os.listdir('code15'), desc="Processing files"):
