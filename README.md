@@ -33,3 +33,14 @@ In order to save disk space, we discard redundant leads (III, aVF, aVR, aVL) and
 To run a single instance of grid search (model configuration), run `python pt_grid_search_instance.py` with corresponding arguments.
 
 To evaluate our model in the gallery/probe matching task or overseer simulation task, run `pt_evaluate_as_classifier.py` with corresponding arguments. You can run `gallery_probe_all.sh` and `overseer_simulation_dev/test.sh` to directly reproduce our results, or update the model path parameter to evaluate a different model.
+
+If you've found our work useful, please cite our publication:
+
+```
+@article{sejak2023electrocardioguard,
+  title={ElectroCardioGuard: Preventing Patient Misidentification in Electrocardiogram Databases through Neural Networks},
+  author={Sej{\'a}k, Michal and Sido, Jakub and {\v{Z}}ahour, David},
+  journal={arXiv preprint arXiv:2306.06196},
+  year={2023}
+}
+```
