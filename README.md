@@ -34,6 +34,8 @@ To run a single instance of grid search (model configuration), run `python pt_gr
 
 To evaluate our model in the gallery/probe matching task or overseer simulation task, run `pt_evaluate_as_classifier.py` with corresponding arguments. You can run `gallery_probe_all.sh` and `overseer_simulation_dev/test.sh` to directly reproduce our results, or update the model path parameter to evaluate a different model.
 
+Our model is built on top of CDIL-CNN (`models/pt_cdil_cnn.py`). The original implementation can be found here: https://github.com/LeiCheng-no/CDIL-CNN.
+
 If you've found our work useful, please cite our publication:
 
 ```
