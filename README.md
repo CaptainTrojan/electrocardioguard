@@ -26,7 +26,7 @@ The script will take a long time to fully complete (4-7 hours). To verify the pr
 | PTB-XL   | 21,799 | 18,869     | 2.1GB |
 | CODE-15% | 345,106| 233,479    | 22GB  |
 
-In order to save disk space, we discard redundant leads (III, aVF, aVR, aVL) and quantize voltages to a 16-bit scale with 4.88 μV per bit. Tracings are stored in HDF5 files with a single tracing per chunk for fast random access.
+In order to save disk space, we discard redundant leads (III, aVF, aVR, aVL). Specifically, the remaining leads V1-6, I, and II are stored in this order respectively from indices 0 to 7. We also quantize voltages to a 16-bit scale with 4.88 μV per bit. Tracings are stored in HDF5 files with a single tracing per chunk for fast random access.
 
 `results` contains full result tables, whose shortened and compact versions are published in our paper.
 
