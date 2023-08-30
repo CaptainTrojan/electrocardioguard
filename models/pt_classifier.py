@@ -5,6 +5,7 @@ import torch
 from tqdm import tqdm
 from h5_pt_dataloader import ECGDataModule, HDF5ECGDataset
 from collections import Counter
+from time import perf_counter
 
 
 class PatientCluster:
@@ -312,33 +313,38 @@ class Classifier:
                 overseer_mistake_mask = np.zeros(eval_samples, dtype=bool)
                 overseer_mistake_mask[np.random.choice(eval_samples, overseer_mistakes, replace=False)] = True
 
-                for overseer_made_a_mistake, patient_id, vector in \
+                for clinician_made_a_mistake, patient_id, vector in \
                         tqdm(zip(overseer_mistake_mask, patient_ids, vectors), total=eval_samples,
                              desc=f"Classifying patients (omr = {overseer_mistakes / eval_samples:.2f})", leave=False):
 
+                    start_time_detect = perf_counter()
                     correct_cluster_id = database.get_cluster_id_by_patient_id(patient_id)
                     assert correct_cluster_id != -1
                     mistake_corrected = False
                     mistake_correction_hinted = False
                     mistake_detected = False
 
-                    if overseer_made_a_mistake:
+                    if clinician_made_a_mistake:
                         while True:
-                            overseer_cluster_id = np.random.randint(0, len(database), size=1)[0]
-                            if overseer_cluster_id != correct_cluster_id:
+                            clinician_cluster_id = np.random.randint(0, len(database), size=1)[0]
+                            if clinician_cluster_id != correct_cluster_id:
                                 break
                     else:
-                        overseer_cluster_id = correct_cluster_id
+                        clinician_cluster_id = correct_cluster_id
+
+                    clinician_chosen_cluster = database.get_patient_cluster(clinician_cluster_id)
+                    likelihood = self.__calculate_likelihood(vector, clinician_chosen_cluster)
+                    if likelihood < likelihood_threshold:
+                        mistake_detected = True
+
+                    end_time_detect = perf_counter()
 
                     potential_cluster_ids, dec_pred, dec_true = \
                         self.__find_candidates(vector, database, decision_threshold, correct_cluster_id)
-
                     acc_dec = sum(sum(p == t for p, t in zip(P, T)) for P, T in zip(dec_pred, dec_true)) / sum(
                         len(P) for P in dec_pred)
-                    overseer_chosen_cluster = database.get_patient_cluster(overseer_cluster_id)
-                    likelihood = self.__calculate_likelihood(vector, overseer_chosen_cluster)
-                    if likelihood < likelihood_threshold:
-                        mistake_detected = True
+
+                    start_time_suggest = perf_counter()
 
                     # Discriminator claims the overseer made a mistake
                     if mistake_detected:
@@ -350,35 +356,39 @@ class Classifier:
                             best_fit = max(potential_cluster_ids, key=lambda i:
                             self.__calculate_likelihood(vector, database.get_patient_cluster(i)))
 
-                        if overseer_made_a_mistake:
+                        if clinician_made_a_mistake:
                             if correct_cluster_id in potential_cluster_ids:
                                 mistake_correction_hinted = True
                             if best_fit == correct_cluster_id:
                                 mistake_corrected = True
 
-                    if overseer_made_a_mistake and mistake_detected:
+                    end_time_suggest = perf_counter()
+
+                    if clinician_made_a_mistake and mistake_detected:
                         database.add_ecg_vector(vector, patient_id, correct_cluster_id)
                     else:
-                        database.add_ecg_vector(vector, patient_id, overseer_cluster_id)
+                        database.add_ecg_vector(vector, patient_id, clinician_cluster_id)
 
-                    overseer_cluster_decisions = dec_pred[overseer_cluster_id]
+                    clinician_cluster_decisions = dec_pred[clinician_cluster_id]
                     true_cluster_decisions = dec_pred[correct_cluster_id]
                     stats.append({
-                        'overseer_mistake': overseer_made_a_mistake,
+                        'clinician_mistake': clinician_made_a_mistake,
                         'mistake_detected': mistake_detected,
                         'mistake_corrected': mistake_corrected,
                         'mistake_correction_hinted': mistake_correction_hinted,
                         'accuracy_on_setup': acc_dec,
-                        'OC_close_frac': sum(overseer_cluster_decisions) / len(overseer_cluster_decisions),
+                        'OC_close_frac': sum(clinician_cluster_decisions) / len(clinician_cluster_decisions),
                         'true_close_frac': sum(true_cluster_decisions) / len(true_cluster_decisions),
                         'likelihood': likelihood,
+                        'detect_time_taken_s': end_time_detect - start_time_detect,
+                        'suggest_time_taken_s': end_time_suggest - start_time_suggest,
                     })
 
                 # Evaluation process
-                om_tp = sum(row['overseer_mistake'] and row['mistake_detected'] for row in stats)
-                om_fp = sum(not row['overseer_mistake'] and row['mistake_detected'] for row in stats)
-                om_fn = sum(row['overseer_mistake'] and not row['mistake_detected'] for row in stats)
-                om_tn = sum(not row['overseer_mistake'] and not row['mistake_detected'] for row in stats)
+                om_tp = sum(row['clinician_mistake'] and row['mistake_detected'] for row in stats)
+                om_fp = sum(not row['clinician_mistake'] and row['mistake_detected'] for row in stats)
+                om_fn = sum(row['clinician_mistake'] and not row['mistake_detected'] for row in stats)
+                om_tn = sum(not row['clinician_mistake'] and not row['mistake_detected'] for row in stats)
 
                 precision = om_tp / (om_tp + om_fp) if om_tp > 0 else 0
                 recall = om_tp / (om_tp + om_fn) if om_tp > 0 else 0
@@ -386,7 +396,7 @@ class Classifier:
                 f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
 
                 tp_tn, lm, ncm, cm, total = database.get_prediction_stats()
-                om_total = sum(row['overseer_mistake'] for row in stats)
+                om_total = sum(row['clinician_mistake'] for row in stats)
                 # missed_total = sum(row['overseer_mistake'] and not row['mistake_detected'] for row in stats)
 
                 p_at_r95, p_at_r95_threshold = self.precision_at_recall(overseer_mistakes, stats, target_recall=0.95)
@@ -404,9 +414,9 @@ class Classifier:
                     'OM_P@R95': p_at_r95,
                     'OM_P@R95_threshold': p_at_r95_threshold,
 
-                    'OM_corrected_frac': (sum(row['overseer_mistake'] and row['mistake_corrected'] for row in
+                    'OM_corrected_frac': (sum(row['clinician_mistake'] and row['mistake_corrected'] for row in
                                               stats) / om_total) if om_total > 0 else 0,
-                    'OM_corr_hinted_frac': (sum(row['overseer_mistake'] and row['mistake_correction_hinted'] for row in
+                    'OM_corr_hinted_frac': (sum(row['clinician_mistake'] and row['mistake_correction_hinted'] for row in
                                                 stats) / om_total) if om_total > 0 else 0,
 
                     'overseer_mistakes': om_total,
@@ -414,6 +424,8 @@ class Classifier:
                     'false_alarms': om_fp,
                     'missed_alarms': om_fn,
                     'acc_dec': sum(row['accuracy_on_setup'] for row in stats) / len(stats),
+                    'avg_detect_time_taken_s': sum(row['detect_time_taken_s'] for row in stats) / len(stats),
+                    'avg_suggest_time_taken_s': sum(row['suggest_time_taken_s'] for row in stats) / len(stats),
                     # 'OM_close_frac': (sum(row['OC_close_frac'] and row['overseer_mistake'] for row in stats) / om_total) if om_total > 0 else 0,
                     # 'true_close_frac': sum(row['true_close_frac'] for row in stats) / len(stats),
                     # 'missed_close_frac': (sum(row['OC_close_frac'] and row['overseer_mistake'] and not row['mistake_detected'] for row in stats) / missed_total) if missed_total > 0 else 0,
@@ -448,7 +460,7 @@ class Classifier:
             return None, None
 
         assert 0 < target_recall < 1
-        likelihoods_and_mistakes = [(1 - row['likelihood'], row['overseer_mistake']) for row in stats]
+        likelihoods_and_mistakes = [(1 - row['likelihood'], row['clinician_mistake']) for row in stats]
         current_recall = 0.0
         current_fp = 0
         p_at_r95 = None
