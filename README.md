@@ -1,6 +1,8 @@
 # ElectroCardioGuard
 
-This repository will contain all code, models and datasets relevant to ElectroCardioGuard (https://arxiv.org/abs/2306.06196).
+This repository contains all code and models relevant to ElectroCardioGuard (https://www.sciencedirect.com/science/article/pii/S0950705123007645, https://arxiv.org/abs/2306.06196).
+
+Due to the large size of the IKEM dataset, we opted to publish it on Zenodo (https://zenodo.org/record/8393007).
 
 ## Installation
 
