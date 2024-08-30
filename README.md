@@ -42,9 +42,12 @@ If you've found our work useful, please cite our publication:
 
 ```
 @article{sejak2023electrocardioguard,
-  title={ElectroCardioGuard: Preventing Patient Misidentification in Electrocardiogram Databases through Neural Networks},
+  title={ElectroCardioGuard: Preventing patient misidentification in electrocardiogram databases through neural networks},
   author={Sej{\'a}k, Michal and Sido, Jakub and {\v{Z}}ahour, David},
-  journal={arXiv preprint arXiv:2306.06196},
-  year={2023}
+  journal={Knowledge-Based Systems},
+  volume={280},
+  pages={111014},
+  year={2023},
+  publisher={Elsevier}
 }
 ```
